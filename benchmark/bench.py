@@ -18,7 +18,8 @@ def timeit():
 
 
 def get_random_block_body():
-    block_num = random.randint(10_000_000, 18_000_000)
+    million = 1000000
+    block_num = random.randint(15 * million, 18 * million)
     body = {
         'jsonrpc': '2.0', 'id': block_num, 'method': 'call',
         'params': ['database_api', 'get_block', (block_num,)]
