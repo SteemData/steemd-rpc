@@ -17,9 +17,13 @@ def timeit():
     print("Time Elapsed: %.2f" % (time.time() - t1))
 
 
-def get_random_block_body():
+def get_random_block_num():
     million = 1000000
-    block_num = random.randint(15 * million, 18 * million)
+    return random.randint(15 * million, 18 * million)
+
+
+def get_random_block_body():
+    block_num = get_random_block_num()
     body = {
         'jsonrpc': '2.0', 'id': block_num, 'method': 'call',
         'params': ['database_api', 'get_block', (block_num,)]
@@ -27,29 +31,66 @@ def get_random_block_body():
     return json.dumps(body)
 
 
-def get_random_block(steemd_url):
+def get_random_vops_body():
+    block_num = get_random_block_num()
+    body = {
+        'jsonrpc': '2.0', 'id': block_num, 'method': 'call',
+        'params': ['database_api', 'get_ops_in_block', (block_num, True)]
+    }
+    return json.dumps(body)
+
+
+def make_request(steemd_url, data):
     with suppress(Exception):
-        return session.post(
-            steemd_url,
-            data=get_random_block_body()).text
+        return session.post(steemd_url, data=data).text
 
 
-def benchmark_get_blocks(steemd_url, num_of_requests, max_workers=100):
+def run_benchmark(steemd_url, request_bodies, max_workers=100):
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = (executor.submit(get_random_block, steemd_url)
-                   for _ in range(num_of_requests))
+        futures = (executor.submit(make_request, steemd_url, data)
+                   for data in request_bodies)
         for _ in as_completed(futures):
             continue
 
 
-@click.command()
+@click.group(chain=True)
+@click.option('--threads', default=100)
+@click.pass_context
+def cli(ctx, threads):
+    ctx.obj['threads'] = threads
+
+
+@cli.command('blocks')
 @click.argument('node-url', default="https://api.steemit.com")
 @click.argument('num-of-requests', default=1000)
-def benchmark(node_url, num_of_requests):
+@click.pass_context
+def benchmark_blocks(ctx, node_url, num_of_requests):
     print("Getting %d random blocks from %s" % (num_of_requests, node_url))
+    request_bodies = [
+        get_random_block_body() for _ in range(num_of_requests)
+    ]
     with timeit():
-        benchmark_get_blocks(node_url, num_of_requests)
+        run_benchmark(
+            node_url,
+            request_bodies,
+            max_workers=ctx.obj['threads'])
+
+
+@cli.command('vops')
+@click.argument('node-url', default="https://api.steemit.com")
+@click.argument('num-of-requests', default=1000)
+@click.pass_context
+def benchmark_blocks(ctx, node_url, num_of_requests):
+    print("Getting %d random virtual-blocks from %s" % (num_of_requests, node_url))
+    request_bodies = [
+        get_random_vops_body() for _ in range(num_of_requests)
+    ]
+    with timeit():
+        run_benchmark(
+            node_url,
+            request_bodies,
+            max_workers=ctx.obj['threads'])
 
 
 if __name__ == '__main__':
-    benchmark()
+    cli(obj={})
