@@ -3,10 +3,10 @@ import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager, suppress
-from prettytable import PrettyTable
 
 import click
 import requests
+from prettytable import PrettyTable
 
 session = requests.Session()
 
@@ -92,17 +92,21 @@ def benchmark_vops(ctx, node_url, num_of_requests):
             request_bodies,
             max_workers=ctx.obj['threads'])
 
+
 @cli.command('auto')
 @click.argument('node-url', default="https://api.steemit.com")
-@click.argument('num-of-requests', default=10000)
+@click.argument('num-of-requests', default=1000)
 def benchmark_auto(node_url, num_of_requests):
     t = PrettyTable(["Host", "Bench", "Requests", "Threads", "Time"])
     t.align = "l"
 
     for bench_fn in [get_random_block_body, get_random_vops_body]:
-        for threads in [10, 50, 100, 250, 500, 1000]:
-            click.echo("Making %d requests to %s [%s threads]"
-                % (num_of_requests, node_url, threads))
+        click.echo("Benchmark %s:" % bench_fn.__name__)
+        for threads in [10, 50, 100, 250]:
+            click.echo("Making %d requests to %s [%s threads]" % (
+                num_of_requests,
+                node_url,
+                threads))
             request_bodies = [
                 bench_fn() for _ in range(num_of_requests)
             ]
@@ -123,6 +127,7 @@ def benchmark_auto(node_url, num_of_requests):
 
     click.echo("\n>Results:")
     click.echo(t)
+
 
 if __name__ == '__main__':
     cli(obj={})
